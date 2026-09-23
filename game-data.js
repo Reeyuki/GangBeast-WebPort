@@ -60,10 +60,19 @@
       return null;
     }
     // Never intercept the part files or manifests themselves.
-    if (/part-\d+\.bin$/.test(urlString) || /-manifest\.json$/.test(urlString)) return null;
+    if (/part-\d+\.bin$/i.test(urlString.split('#')[0].split('?')[0]) || /-manifest\.json$/i.test(urlString.split('#')[0].split('?')[0])) return null;
     var key = normalizePath(urlString);
-    var entry = CHUNKED_FILES[key];
-    return entry ? { key: key, entry: entry } : null;
+    // Exact match (local serve from repo root).
+    if (CHUNKED_FILES[key]) return { key: key, entry: CHUNKED_FILES[key] };
+    // Suffix match (CDN / subpath serve: pathname includes a prefix such as
+    // "/gh/<user>/<repo>@<ref>/Build/..."). Return the canonical key so the
+    // file cache and progress reporting stay stable.
+    for (var candidate in CHUNKED_FILES) {
+      if (key === candidate || key.endsWith('/' + candidate)) {
+        return { key: candidate, entry: CHUNKED_FILES[candidate] };
+      }
+    }
+    return null;
   }
 
   function toAbsoluteUrl(url) {
