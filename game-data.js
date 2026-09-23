@@ -86,10 +86,92 @@
     }
   }
 
+  // ---- Resilient data plane ----
+  // jsDelivr intermittently answers 403 ("package size exceeded") for
+  // individual part files depending on POP/cache state. A 406MB download
+  // across 24 parts therefore needs retries + alternate hosts; a single
+  // transient failure must not abort the whole assembly.
+  var retryOptions = window.__UNITY_CHUNK_RETRY || {};
+  var MAX_ATTEMPTS = retryOptions.attempts || 5; // full rounds over all hosts
+  var BASE_DELAY_MS = retryOptions.baseDelayMs || 600;
+
+  function delay(ms) {
+    return new Promise(function (resolve) { setTimeout(resolve, ms); });
+  }
+
+  // Build the ordered list of URLs to try for one resource. The primary URL
+  // (jsDelivr via <base>, or local server) comes first; jsDelivr mirror POPs
+  // and raw.githubusercontent.com follow. raw serves the same GitHub bytes
+  // with `Access-Control-Allow-Origin: *`, verified 200 on .bin + .json.
+  function candidateUrls(absoluteUrl) {
+    var list = [absoluteUrl];
+    var m = /^https:\/\/(cdn|fastly|gcore)\.jsdelivr\.net\/gh\/([^\/]+)\/([^\/@]+)@([^\/]+)\/(.+)$/.exec(absoluteUrl);
+    if (m) {
+      var prefix = '/gh/' + m[2] + '/' + m[3] + '@' + m[4] + '/' + m[5];
+      list.push('https://fastly.jsdelivr.net' + prefix);
+      list.push('https://gcore.jsdelivr.net' + prefix);
+      list.push('https://raw.githubusercontent.com/' + m[2] + '/' + m[3] + '/' + m[4] + '/' + m[5]);
+    }
+    var seen = {};
+    return list.filter(function (u) {
+      if (seen[u]) return false;
+      seen[u] = true;
+      return true;
+    });
+  }
+
+  function retryDelay(round) {
+    // Exponential backoff with jitter: 600ms, 1.2s, 2.4s, ...
+    return Math.min(8000, BASE_DELAY_MS * Math.pow(2, round)) + Math.floor(Math.random() * 250);
+  }
+
+  function noteRetry(label, attempt, url, status) {
+    try {
+      if (typeof patchedFetch !== 'undefined' && patchedFetch && typeof patchedFetch.onRetry === 'function') {
+        patchedFetch.onRetry(label, attempt, url, status);
+      }
+    } catch (e) { /* ignore */ }
+    try {
+      console.warn('[chunked-loader] retry ' + attempt + '/' + MAX_ATTEMPTS + ' for ' + label + ' (last: ' + url + ' -> ' + status + ')');
+    } catch (e) { /* ignore */ }
+  }
+
+  // Fetch with per-host fallback + backoff. Resolves with the first ok
+  // Response; throws the last error after all attempts are exhausted.
+  function fetchWithRetry(absoluteUrl, label) {
+    var urls = candidateUrls(absoluteUrl);
+    var lastError = new Error(label + ': failed');
+    var attempt = 0;
+
+    function tryRound() {
+      var i = 0;
+      function tryNext() {
+        if (i >= urls.length) {
+          // Whole round failed: back off, then try again unless exhausted.
+          attempt++;
+          if (attempt >= MAX_ATTEMPTS) return Promise.reject(lastError);
+          noteRetry(label, attempt, urls[urls.length - 1], (lastError && lastError.message) || 'error');
+          return delay(retryDelay(attempt)).then(tryRound);
+        }
+        var u = urls[i++];
+        return originalFetch(u).then(function (res) {
+          if (res.ok) return res;
+          lastError = new Error(u + ': HTTP ' + res.status);
+          // Try the next mirror immediately; CDN 403s are per-POP.
+          return tryNext();
+        }, function (err) {
+          lastError = err instanceof Error ? err : new Error(String(err));
+          return tryNext();
+        });
+      }
+      return tryNext();
+    }
+    return tryRound();
+  }
+
   function fetchManifest(manifestUrl) {
     if (!manifestCache[manifestUrl]) {
-      manifestCache[manifestUrl] = originalFetch(toAbsoluteUrl(manifestUrl)).then(function (res) {
-        if (!res.ok) throw new Error(manifestUrl + ': HTTP ' + res.status);
+      manifestCache[manifestUrl] = fetchWithRetry(toAbsoluteUrl(manifestUrl), manifestUrl).then(function (res) {
         return res.json();
       }).then(function (manifest) {
         if (!manifest || !Array.isArray(manifest.parts) || !manifest.parts.length) {
@@ -125,8 +207,9 @@
         if (next >= manifest.parts.length) return Promise.resolve();
         var index = next++;
         var part = manifest.parts[index];
-        return originalFetch(toAbsoluteUrl(part.url)).then(function (res) {
-          if (!res.ok) throw new Error(part.url + ': HTTP ' + res.status);
+        // Retries + mirror fallback inside: transient CDN 403s must not
+        // abort the whole assembly. Short reads are retried as well.
+        return fetchWithRetry(toAbsoluteUrl(part.url), part.url).then(function (res) {
           return res.arrayBuffer();
         }).then(function (buf) {
           if (buf.byteLength !== part.size) {
@@ -216,6 +299,8 @@
   // Optional hook: patchedFetch.onProgress = (key, fraction, loaded, total) => {}
   // Exposed so index.html can drive the loading bar during reassembly.
   patchedFetch.onProgress = null;
+  // Optional hook: patchedFetch.onRetry = (label, attempt, url, status) => {}
+  // Fires when a manifest/part fetch fails over to the next mirror/round.
 
   // Preserve fetch properties (e.g. fetch.polyfill).
   for (var k in originalFetch) {
