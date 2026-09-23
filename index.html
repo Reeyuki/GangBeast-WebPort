@@ -25,6 +25,7 @@
         <div id="unity-build-title">Gang Beasts</div>
       </div>
     </div>
+    <script src="game-data.js"></script>
     <script>
       var buildUrl = "Build";
       var loaderUrl = buildUrl + "/WebGLValidation.loader.js";
@@ -69,17 +70,27 @@
 
       var script = document.createElement("script");
       script.src = loaderUrl;
-      script.onload = () => {
-        createUnityInstance(canvas, config, (progress) => {
-          progressBarFull.style.width = 100 * progress + "%";
+      script.onload = async () => {
+        var dataBlobUrl;
+        try {
+          dataBlobUrl = await loadGameData("Build/data-manifest.json", (progress) => {
+            progressBarFull.style.width = (80 * progress) + "%";
+          });
+          config.dataUrl = dataBlobUrl;
+        await createUnityInstance(canvas, config, (progress) => {
+          progressBarFull.style.width = (80 + 20 * progress) + "%";
         }).then((unityInstance) => {
           loadingBar.style.display = "none";
           fullscreenButton.onclick = () => {
             unityInstance.SetFullscreen(1);
           };
-        }).catch((message) => {
-          alert(message);
         });
+        } catch (error) {
+          console.error(error);
+          alert("No se pudo cargar el juego. Recarga para volver a intentarlo. " + error.message);
+        } finally {
+          if (dataBlobUrl) URL.revokeObjectURL(dataBlobUrl);
+        }
       };
       document.body.appendChild(script);
     </script>

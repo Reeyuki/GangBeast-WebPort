@@ -1,0 +1,86 @@
+{
+  "size": 406634973,
+  "sha256": "e4a1c7a5d45723aeebb5da22f96e66d9327331d7e002b0b1e34df8f5709d4952",
+  "parts": [
+    {
+      "url": "Build/data-e4a1c7a5d457/part-000.bin",
+      "size": 20971520
+    },
+    {
+      "url": "Build/data-e4a1c7a5d457/part-001.bin",
+      "size": 20971520
+    },
+    {
+      "url": "Build/data-e4a1c7a5d457/part-002.bin",
+      "size": 20971520
+    },
+    {
+      "url": "Build/data-e4a1c7a5d457/part-003.bin",
+      "size": 20971520
+    },
+    {
+      "url": "Build/data-e4a1c7a5d457/part-004.bin",
+      "size": 20971520
+    },
+    {
+      "url": "Build/data-e4a1c7a5d457/part-005.bin",
+      "size": 20971520
+    },
+    {
+      "url": "Build/data-e4a1c7a5d457/part-006.bin",
+      "size": 20971520
+    },
+    {
+      "url": "Build/data-e4a1c7a5d457/part-007.bin",
+      "size": 20971520
+    },
+    {
+      "url": "Build/data-e4a1c7a5d457/part-008.bin",
+      "size": 20971520
+    },
+    {
+      "url": "Build/data-e4a1c7a5d457/part-009.bin",
+      "size": 20971520
+    },
+    {
+      "url": "Build/data-e4a1c7a5d457/part-010.bin",
+      "size": 20971520
+    },
+    {
+      "url": "Build/data-e4a1c7a5d457/part-011.bin",
+      "size": 20971520
+    },
+    {
+      "url": "Build/data-e4a1c7a5d457/part-012.bin",
+      "size": 20971520
+    },
+    {
+      "url": "Build/data-e4a1c7a5d457/part-013.bin",
+      "size": 20971520
+    },
+    {
+      "url": "Build/data-e4a1c7a5d457/part-014.bin",
+      "size": 20971520
+    },
+    {
+      "url": "Build/data-e4a1c7a5d457/part-015.bin",
+      "size": 20971520
+    },
+    {
+      "url": "Build/data-e4a1c7a5d457/part-016.bin",
+      "size": 20971520
+    },
+    {
+      "url": "Build/data-e4a1c7a5d457/part-017.bin",
+      "size": 20971520
+    },
+    {
+      "url": "Build/data-e4a1c7a5d457/part-018.bin",
+      "size": 20971520
+    },
+    {
+      "url": "Build/data-e4a1c7a5d457/part-019.bin",
+      "size": 8176093
+    }
+  ]
+}
