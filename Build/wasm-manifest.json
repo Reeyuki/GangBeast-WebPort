@@ -1,0 +1,22 @@
+{
+  "size": 71710940,
+  "sha256": "041c7aec5f1d147e3cd94ceeaabf6335cba69908c33d8de61c13933c92e01063",
+  "parts": [
+    {
+      "url": "Build/wasm-041c7aec5f1d/part-000.bin",
+      "size": 20971520
+    },
+    {
+      "url": "Build/wasm-041c7aec5f1d/part-001.bin",
+      "size": 20971520
+    },
+    {
+      "url": "Build/wasm-041c7aec5f1d/part-002.bin",
+      "size": 20971520
+    },
+    {
+      "url": "Build/wasm-041c7aec5f1d/part-003.bin",
+      "size": 8796380
+    }
+  ]
+}

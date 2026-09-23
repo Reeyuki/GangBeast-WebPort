@@ -6,6 +6,7 @@
     <title>Unity WebGL Player | Gang Beasts</title>
     <link rel="shortcut icon" href="TemplateData/favicon.ico">
     <link rel="stylesheet" href="TemplateData/style.css">
+    <base href="https://cdn.jsdelivr.net/gh/Reeyuki/GangBeast-WebPort@main/"> 
   </head>
   <body>
     <div id="unity-container" class="unity-desktop">
@@ -70,27 +71,42 @@
 
       var script = document.createElement("script");
       script.src = loaderUrl;
-      script.onload = async () => {
-        var dataBlobUrl;
-        try {
-          dataBlobUrl = await loadGameData("Build/data-manifest.json", (progress) => {
-            progressBarFull.style.width = (80 * progress) + "%";
-          });
-          config.dataUrl = dataBlobUrl;
-        await createUnityInstance(canvas, config, (progress) => {
-          progressBarFull.style.width = (80 + 20 * progress) + "%";
-        }).then((unityInstance) => {
-          loadingBar.style.display = "none";
-          fullscreenButton.onclick = () => {
-            unityInstance.SetFullscreen(1);
+      script.onload = () => {
+        // game-data.js has already overridden window.fetch ( + XHR shim) so
+        // requests for Build/WebGLValidation.data and .wasm are reconstructed
+        // from their <=20MB parts. Keep the original config URLs unchanged.
+        var manifestSizes = null;
+        Promise.all([
+          fetch("Build/data-manifest.json").then((r) => r.json()),
+          fetch("Build/wasm-manifest.json").then((r) => r.json()),
+        ]).then((manifests) => {
+          manifestSizes = {};
+          manifestSizes["build/webglvalidation.data"] = manifests[0].size;
+          manifestSizes["build/webglvalidation.wasm"] = manifests[1].size;
+        }).catch(() => {}).finally(() => {
+          var totalPreload = manifestSizes
+            ? manifestSizes["build/webglvalidation.data"] + manifestSizes["build/webglvalidation.wasm"]
+            : 0;
+          var loadedByFile = {};
+          // Progress from chunk reassembly (0% -> 80%), Unity drives 80% -> 100%.
+          window.fetch.onProgress = (key, fraction, loaded, total) => {
+            if (!totalPreload) return;
+            loadedByFile[key] = loaded;
+            var loadedSoFar = Object.values(loadedByFile).reduce((a, b) => a + b, 0);
+            progressBarFull.style.width = (80 * loadedSoFar / totalPreload) + "%";
           };
+          createUnityInstance(canvas, config, (progress) => {
+            progressBarFull.style.width = (80 + 20 * progress) + "%";
+          }).then((unityInstance) => {
+            loadingBar.style.display = "none";
+            fullscreenButton.onclick = () => {
+              unityInstance.SetFullscreen(1);
+            };
+          }).catch((error) => {
+            console.error(error);
+            alert("No se pudo cargar el juego. Recarga para volver a intentarlo. " + error.message);
+          });
         });
-        } catch (error) {
-          console.error(error);
-          alert("No se pudo cargar el juego. Recarga para volver a intentarlo. " + error.message);
-        } finally {
-          if (dataBlobUrl) URL.revokeObjectURL(dataBlobUrl);
-        }
       };
       document.body.appendChild(script);
     </script>
